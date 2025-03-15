@@ -410,11 +410,14 @@ fun streamFold f z xs =
 (* type declarations for consistency checking *)
 val _ = op streamFold : ('a * 'b -> 'b) -> 'b -> 'a stream -> 'b
 (* streams S231f *)
+(* streams S231f *)
 fun streamZip (xs, ys) =
   delayedStream
-  (fn () => case (streamGet xs, streamGet ys)
-              of (SOME (x, xs), SOME (y, ys)) => (x, y) ::: streamZip (xs, ys)
-               | _ => EOS)
+    (fn () => case (streamGet xs, streamGet ys)
+              of (NONE, _) => EOS
+               | (_, NONE) => EOS
+               | (SOME (x, xs'), SOME (y, ys')) => 
+                   (x, y) ::: streamZip (xs', ys'))
 (* streams S232a *)
 fun streamConcat xss =
   let fun get (xs, xss) =
