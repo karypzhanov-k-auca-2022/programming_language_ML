@@ -1183,8 +1183,6 @@ datatype exp   = LITERAL of value
                | APPLY   of exp * exp list
                | LETX    of let_flavor * (name * exp) list * exp
                | LAMBDA  of lambda
-               | OR      of exp * exp
-               | AND     of exp * exp
 and let_flavor = LET | LETREC | LETSTAR
 and      value = SYM       of name
                | NUM       of int
@@ -1244,10 +1242,10 @@ fun expString e =
                          bracketSpace ["while", expString cond, expString body]
          | BEGIN es => bracketSpace ("begin" :: exps es)
          | APPLY (e, es) => bracketSpace (exps (e::es))
-         | LETX (lk, bs, e) => bracketSpace [letkind lk, bindings bs, expString e]
-         | LAMBDA (xs, body) => bracketSpace ["lambda", bracketSpace xs, expString body]
-         | OR (e1, e2) => bracketSpace ["||", expString e1, expString e2]
-         | AND (e1, e2) => bracketSpace ["&&", expString e1, expString e2]
+         | LETX (lk, bs, e) => bracketSpace [letkind lk, bindings bs, expString
+                                                                              e]
+         | LAMBDA (xs, body) => bracketSpace ["lambda", bracketSpace xs,
+                                                                 expString body]
   end
 (* type declarations for consistency checking *)
 val _ = op valueString      : value -> string
@@ -1569,70 +1567,81 @@ val _ = op stringsxdefs : string * string list               -> xdef stream
 (* definitions of [[eval]], [[evaldef]], [[basis]], and [[processDef]] for \uscheme ((elided)) (THIS CAN'T HAPPEN -- claimed code was not used) *)
 (* definitions of [[eval]] and [[evaldef]] for \uscheme 309a *)
 fun eval (e, rho) =
+  let val go = applyWithLimits id in go end (* OMIT *)
   let fun ev (LITERAL v) = v
+        (* more alternatives for [[ev]] for \uscheme 309b *)
         | ev (VAR x) = !(find (x, rho))
-        | ev (SET (x, e)) =
+        | ev (SET (x, e)) = 
             let val v = ev e
             in  find (x, rho) := v;
                 v
             end
+        (* more alternatives for [[ev]] for \uscheme 309c *)
         | ev (IFX (e1, e2, e3)) = ev (if projectBool (ev e1) then e2 else e3)
-        | ev (WHILEX (guard, body)) =
-            if projectBool (ev guard) then
+        | ev (WHILEX (guard, body)) = 
+            if projectBool (ev guard) then 
               (ev body; ev (WHILEX (guard, body)))
             else
               BOOLV false
+        (* more alternatives for [[ev]] for \uscheme 309d *)
         | ev (BEGIN es) =
             let fun b (e::es, lastval) = b (es, ev e)
-                  | b ([], lastval) = lastval
+                  | b (   [], lastval) = lastval
             in  b (es, BOOLV false)
             end
+        (* more alternatives for [[ev]] for \uscheme 310a *)
         | ev (LAMBDA (xs, e)) = CLOSURE ((xs, e), rho)
-        | ev (e as APPLY (f, args)) =
+        (* more alternatives for [[ev]] for \uscheme 310b *)
+        | ev (e as APPLY (f, args)) = 
                (case ev f
                   of PRIMITIVE prim => prim (e, map ev args)
                    | CLOSURE clo    =>
-                       let val ((formals, body), savedrho) = clo
-                           val actuals = map ev args
-                       in  eval (body, bindList (formals, map ref actuals, savedrho))
-                           handle BindListLength =>
-                               raise RuntimeError (
-                          "Wrong number of arguments to closure; " ^
-                                                       "expected ("
-                                               ^ spaceSep formals ^ ")")
-                       end
+                       (* apply closure [[clo]] to [[args]] ((mlscheme)) 310c *)
+                                       let val ((formals, body), savedrho) = clo
+                                           val actuals = map ev args
+                                       in  eval (body, bindList (formals, map
+                                                         ref actuals, savedrho))
+                                           handle BindListLength => 
+                                               raise RuntimeError (
+                                      "Wrong number of arguments to closure; " ^
+                                                                   "expected ("
+                                                       ^ spaceSep formals ^ ")")
+                                       end
                    | v => raise RuntimeError
-                              ("Applied non-function " ^ valueString v)
+                                  ("Applied non-function " ^ valueString v)
                )
+        (* more alternatives for [[ev]] for \uscheme 310d *)
         | ev (LETX (LET, bs, body)) =
             let val (names, rightSides) = ListPair.unzip bs
+        (* type declarations for consistency checking *)
+        val _ = ListPair.unzip : ('a * 'b) list -> 'a list * 'b list
             in  eval (body, bindList (names, map (ref o ev) rightSides, rho))
             end
+        (* more alternatives for [[ev]] for \uscheme 310e *)
         | ev (LETX (LETSTAR, bs, body)) =
             let fun step ((x, e), rho) = bind (x, ref (eval (e, rho)), rho)
             in  eval (body, foldl step rho bs)
             end
+        (* more alternatives for [[ev]] for \uscheme 311a *)
         | ev (LETX (LETREC, bs, body)) =
             let val (names, rightSides) = ListPair.unzip bs
                 val rho' =
-                  bindList (names, map (fn _ => ref (unspecified())) rightSides, rho)
-                val updates = map (fn (x, rightSide) => (x, eval (rightSide, rho'))) bs
-            in  List.app (fn (x, v) => find (x, rho') := v) updates;
+                  bindList (names, map (fn _ => ref (unspecified())) rightSides,
+                                                                            rho)
+                val updates = map (fn (x, rightSide) => (x, eval (rightSide,
+                                                                      rho'))) bs
+        (* type declarations for consistency checking *)
+        val _ = List.app : ('a -> unit) -> 'a list -> unit
+            in  List.app (fn (x, v) => find (x, rho') := v) updates; 
                 eval (body, rho')
             end
-        | ev (OR (e1, e2)) =
-            if projectBool (ev e1) then BOOLV true else ev e2
-        | ev (AND (e1, e2)) =
-            if projectBool (ev e1) then ev e2 else BOOLV false
-  in ev e
-  end
 (* type declarations for consistency checking *)
 val _ = op embedList : value list -> value
 (* type declarations for consistency checking *)
 val _ = op eval : exp * value ref env -> value
 val _ = op ev   : exp                 -> value
-  arrow  ev e
-  local
+  in  ev e
+  end
 (* definitions of [[eval]] and [[evaldef]] for \uscheme 311b *)
 fun withNameBound (x, rho) =
   (find (x, rho); rho)
