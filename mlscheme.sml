@@ -1571,31 +1571,31 @@ val _ = op stringsxdefs : string * string list               -> xdef stream
 fun eval (e, rho) =
   let fun ev (LITERAL v) = v
         | ev (VAR x) = !(find (x, rho))
-        | ev (SET (x, e)) = 
+        | ev (SET (x, e)) =
             let val v = ev e
             in  find (x, rho) := v;
                 v
             end
         | ev (IFX (e1, e2, e3)) = ev (if projectBool (ev e1) then e2 else e3)
-        | ev (WHILEX (guard, body)) = 
-            if projectBool (ev guard) then 
+        | ev (WHILEX (guard, body)) =
+            if projectBool (ev guard) then
               (ev body; ev (WHILEX (guard, body)))
             else
               BOOLV false
         | ev (BEGIN es) =
             let fun b (e::es, lastval) = b (es, ev e)
-                  | b (   [], lastval) = lastval
+                  | b ([], lastval) = lastval
             in  b (es, BOOLV false)
             end
         | ev (LAMBDA (xs, e)) = CLOSURE ((xs, e), rho)
-        | ev (e as APPLY (f, args)) = 
+        | ev (e as APPLY (f, args)) =
                (case ev f
                   of PRIMITIVE prim => prim (e, map ev args)
                    | CLOSURE clo    =>
                        let val ((formals, body), savedrho) = clo
                            val actuals = map ev args
                        in  eval (body, bindList (formals, map ref actuals, savedrho))
-                           handle BindListLength => 
+                           handle BindListLength =>
                                raise RuntimeError (
                           "Wrong number of arguments to closure; " ^
                                                        "expected ("
@@ -1617,7 +1617,7 @@ fun eval (e, rho) =
                 val rho' =
                   bindList (names, map (fn _ => ref (unspecified())) rightSides, rho)
                 val updates = map (fn (x, rightSide) => (x, eval (rightSide, rho'))) bs
-            in  List.app (fn (x, v) => find (x, rho') := v) updates; 
+            in  List.app (fn (x, v) => find (x, rho') := v) updates;
                 eval (body, rho')
             end
         | ev (OR (e1, e2)) =
@@ -1631,8 +1631,8 @@ val _ = op embedList : value list -> value
 (* type declarations for consistency checking *)
 val _ = op eval : exp * value ref env -> value
 val _ = op ev   : exp                 -> value
-  in  ev e
-  end
+  arrow  ev e
+  local
 (* definitions of [[eval]] and [[evaldef]] for \uscheme 311b *)
 fun withNameBound (x, rho) =
   (find (x, rho); rho)
