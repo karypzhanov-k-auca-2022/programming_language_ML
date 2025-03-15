@@ -1183,6 +1183,8 @@ datatype exp   = LITERAL of value
                | APPLY   of exp * exp list
                | LETX    of let_flavor * (name * exp) list * exp
                | LAMBDA  of lambda
+               | OR      of exp * exp
+                | AND     of exp * exp
 and let_flavor = LET | LETREC | LETSTAR
 and      value = SYM       of name
                | NUM       of int
@@ -1246,6 +1248,8 @@ fun expString e =
                                                                               e]
          | LAMBDA (xs, body) => bracketSpace ["lambda", bracketSpace xs,
                                                                  expString body]
+         | OR (e1, e2) => bracketSpace ["||", expString e1, expString e2] (*add*)
+         | AND (e1, e2) => bracketSpace ["&&", expString e1, expString e2] (*add*)                                  
   end
 (* type declarations for consistency checking *)
 val _ = op valueString      : value -> string
@@ -1386,7 +1390,7 @@ val _ = op namelike : name parser
 (* parsers for \uscheme\ tokens S385b *)
 val reserved = [ "if", "while", "set", "begin", "lambda", "let"
                , "letrec", "let*", "quote", "val", "define", "use"
-               , "check-expect", "check-assert", "check-error"
+               , "check-expect", "check-assert", "check-error", "&&", "||"
                ]
 val name = rejectReserved reserved <$>! namelike
 (* parsers and parser builders for formal parameters and bindings S385c *)
@@ -1462,6 +1466,8 @@ fun fullSchemeExpOf atomic bracketedOf =
       <|> leftCurly <!> "curly brackets are not supported"
       <|> left *> right <!> "(): unquoted empty parentheses"
       <|> bracket("function application", curry APPLY <$> exp <*> many exp)
+      <|> (exp <* eqx "||") <*> exp <$> (fn (e1, e2) => OR (e1, e2))  (* add *)
+      <|> (exp <* eqx "&&") <*> exp <$> (fn (e1, e2) => AND (e1, e2)) (* add *)
   end
 (* type declarations for consistency checking *)
 val _ = op fullSchemeExpOf : exp parser -> (exp parser -> exp parser) -> exp
@@ -1635,6 +1641,16 @@ fun eval (e, rho) =
             in  List.app (fn (x, v) => find (x, rho') := v) updates; 
                 eval (body, rho')
             end
+        | ev (OR (e1, e2)) =
+         (case ev e1
+           of BOOLV true => BOOLV true
+            | BOOLV false => ev e2
+            | v => raise RuntimeError ("non-boolean OR argument: " ^ valueString v))
+        | ev (AND (e1, e2)) =
+         (case ev e1
+           of BOOLV false => BOOLV false
+           | BOOLV true => ev e2
+           | v => raise RuntimeError ("non-boolean AND argument: " ^ valueString v))
 (* type declarations for consistency checking *)
 val _ = op embedList : value list -> value
 (* type declarations for consistency checking *)
