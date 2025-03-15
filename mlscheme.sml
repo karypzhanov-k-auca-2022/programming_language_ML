@@ -1457,11 +1457,18 @@ fun atomicSchemeExpOf name =  VAR                   <$> name
                           <|> LITERAL <$> embedBool <$> booltok
 (* parsers and parser builders for \scheme-like syntax S388a *)
 fun fullSchemeExpOf atomic bracketedOf =
-  val exp = fullSchemeExpOf (atomicSchemeExpOf name) (fn exp =>
-  exptable exp
-  <|> ("||" *> (curry OR <$> exp <*> exp))
-  <|> ("&&" *> (curry AND <$> exp <*> exp))
-)
+val exp = fn tokens => 
+  let val exp = fn tokens => fullSchemeExpOf atomic bracketedOf tokens
+  in      atomic
+      <|> bracketedOf exp
+      <|> quote *> (LITERAL <$> sexp)
+      <|> quote *> badRight "quote ' followed by right bracket"
+      <|> leftCurly <!> "curly brackets are not supported"
+      <|> left *> right <!> "(): unquoted empty parentheses"
+      <|> bracket("function application", curry APPLY <$> exp <*> many exp)
+      <|> "||" <$> exp <*> exp <$> (fn (e1, e2) => OR (e1, e2))  (* добавлено *)
+      <|> "&&" <$> exp <*> exp <$> (fn (e1, e2) => AND (e1, e2)) (* добавлено *)
+  end
 (* type declarations for consistency checking *)
 val _ = op fullSchemeExpOf : exp parser -> (exp parser -> exp parser) -> exp
                                                                           parser
