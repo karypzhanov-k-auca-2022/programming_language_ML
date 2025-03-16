@@ -1248,8 +1248,8 @@ fun expString e =
                                                                               e]
          | LAMBDA (xs, body) => bracketSpace ["lambda", bracketSpace xs,
                                                                  expString body]
-          | OR (e1, e2) => bracketSpace ["||", expString e1, expString e2]
-          | AND (e1, e2) => bracketSpace ["&&", expString e1, expString e2]
+          | OR (e1, e2) => "or(" ^ expString e1 ^ ", " ^ expString e2 ^ ")"
+          | AND (e1, e2) => "and(" ^ expString e1 ^ ", " ^ expString e2 ^ ")"
   end
 (* type declarations for consistency checking *)
 val _ = op valueString      : value -> string
@@ -2267,3 +2267,5 @@ val _ = if hasOption "NORUN" then ()
         else perform (strip_options DEFAULT (CommandLine.arguments ()))
 (* type declarations for consistency checking *)
 val _ = op strip_options : action -> string list -> action * string list
+(* Initial environment *)
+val initial_env = mkEnv (["true", "false"], [ref (BOOLV true), ref (BOOLV false)])
