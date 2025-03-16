@@ -2147,11 +2147,12 @@ val predefs =
                ,
                "(define list8 (x y z a b c d e) (cons x (list7 y z a b c d e)))"
                 ]
-
+val initial_env = mkEnv (["true", "false"], [ref (BOOLV true), ref (BOOLV false)])
 val initialBasis =
   let val xdefs = stringsxdefs ("predefined functions", predefs)
-  in  readEvalPrintWith predefinedFunctionError
-                        (xdefs, primitiveBasis, noninteractive)
+      val basis_with_predefs = readEvalPrintWith predefinedFunctionError
+                                                  (xdefs, primitiveBasis, noninteractive)
+  in  basis_with_predefs <+> initial_env
   end
 (* type declarations for consistency checking *)
 val _ = op primitiveBasis : basis
@@ -2267,5 +2268,3 @@ val _ = if hasOption "NORUN" then ()
         else perform (strip_options DEFAULT (CommandLine.arguments ()))
 (* type declarations for consistency checking *)
 val _ = op strip_options : action -> string list -> action * string list
-(* Initial environment *)
-val initial_env = mkEnv (["true", "false"], [ref (BOOLV true), ref (BOOLV false)])
