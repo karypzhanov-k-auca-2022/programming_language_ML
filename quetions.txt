@@ -1,0 +1,57 @@
+Problem 3: Understanding μScheme interpreter [15 pts]
+
+1.
+The function '-' is primitive. I think it's primitive because it's an arithmetic operation that needs optimization.
+The function negated' is predefined. The 'negated' function can be determined using existing functions.
+
+2.
+The function 'expString' converts expressions to their string representations (line 1227).
+I think it's necessary for debugging and printing. The interpreter has the ability to output in an easy-to-read form.
+
+3.
+A runtime error occurs in the 'apply' function (line 1599) when the number of arguments does not match the expected one. 
+The error is initially detected in the 'eval' function (line 1573).
+
+Problem 4: Extending μScheme interpreter [20 pts]
+
+1. Added `OR` and `AND` to the `exp` datatype:
+datatype exp = ...
+  | OR of exp * exp
+  | AND of exp * exp
+
+2. Extended `expString` function:
+fun expString e = ...
+  case e of
+    ...
+    | OR (e1, e2) => "or(" ^ expString e1 ^ ", " ^ expString e2 ^ ")"
+    | AND (e1, e2) => "and(" ^ expString e1 ^ ", " ^ expString e2 ^ ")"
+
+3. Extended `eval` function:
+fun eval (e, rho) =
+  let fun ev (LITERAL v) = v
+        ...
+        | ev (OR (e1, e2)) =
+            if projectBool (ev e1) then BOOLV true else ev e2
+        | ev (AND (e1, e2)) =
+            if projectBool (ev e1) then ev e2 else BOOLV false
+
+4. Added cases to the parser:
+fun exptable exp = ...
+...
+val _ = op exptable  : exp parser -> exp parser
+...
+  in usageParsers
+ ...
+      , ("(or e1 e2)",               curry  OR     <$> exp <*> exp)
+      , ("(and e1 e2)",              curry  AND    <$> exp <*> exp)
+
+5. Marked `||` and `&&` as reserved words:
+val reserved = ["if", "lambda", "or", "and", ...]
+
+Tests for μScheme Interpreter
+
+(or true false) ; expected: true
+(or false false) ; expected: false
+(and true false) ; expected: false
+(and true true) ; expected: true
+(and (or true false) (or false true)) ; expected: true

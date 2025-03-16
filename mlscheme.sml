@@ -1479,6 +1479,7 @@ fun exptable exp =
         distinctBsIn
             (bindingsOf "[f (lambda (...) ...)]" name (asLambda "letrec" exp))
             "letrec"
+      
 (* type declarations for consistency checking *)
 val _ = op exptable  : exp parser -> exp parser
 val _ = op exp       : exp parser
@@ -1493,6 +1494,8 @@ val _ = op bindings  : (name * exp) list parser
      , ("(letrec (bindings) body)", curry3 LETX LETREC  <$> letrecbs   <*> exp)
      , ("(let* (bindings) body)",   curry3 LETX LETSTAR <$> bindings   <*> exp)
      , ("(quote sexp)",             LITERAL             <$> sexp)
+      , ("(or e1 e2)",               curry  OR     <$> exp <*> exp)
+      , ("(and e1 e2)",              curry  AND    <$> exp <*> exp)
 
    (* rows added to ML \uscheme's [[exptable]] in exercises ((prototype)) 322 *)
      , ("(cond ([q a] ...))",
